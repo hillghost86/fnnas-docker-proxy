@@ -1,7 +1,7 @@
 services:
   nginx-proxy:
     image: nginx:alpine
-    container_name: docker-registry-proxy
+    container_name: fnnas-docker-proxy
     ports:
       # HTTP 方案：监听 15000 端口，允许局域网访问
       - "0.0.0.0:15000:15000"

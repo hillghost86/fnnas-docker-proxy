@@ -9,7 +9,11 @@
 
 > 使用 Nginx 反向代理为飞牛 NAS (FNNAS) 的 Docker Registry 添加自定义认证 headers，实现局域网内 Docker 镜像加速。
 
-专为飞牛 NAS 的 Docker Registry 设计，支持**自动更新认证信息**，实现无缝的镜像加速体验。
+
+
+通过 Nginx 反向代理飞牛 NAS 的 Docker Registry，自动添加认证 headers，支持**自动更新认证信息**，实现局域网内 Docker 镜像加速。
+
+> **⚠️ 重要提示**：本项目**仅限在飞牛 NAS 上使用**。因为需要直接挂载飞牛 NAS 的配置文件（`/root/.docker/config.json`）来获取认证信息，所以 Docker 容器必须在飞牛 NAS 上运行。不支持在其他系统上使用。
 
 ## 📋 目录
 
@@ -31,6 +35,8 @@
 - ✅ **局域网部署** - 支持局域网部署（监听 `0.0.0.0:15000`）
 
 ## 🚀 快速开始
+
+> **📌 使用前提**：本项目必须在**飞牛 NAS 上运行**，因为需要挂载飞牛 NAS 的配置文件来获取认证信息。请确保你的 Docker 环境运行在飞牛 NAS 上。
 
 ### 1. 克隆仓库
 
@@ -64,9 +70,83 @@ git clone git@gitee.com:hillghost86/fnnas-docker-proxy.git
 cd fnnas-docker-proxy
 ```
 
-### 2. 配置 docker-compose
+### 2. 启动服务
 
-编辑 `docker-compose.yml`，确认挂载配置：
+```bash
+docker compose up -d
+```
+
+> **💡 提示**：
+> - 直接使用 `nginx:alpine` 镜像，无需构建
+> - 启动时会自动安装必要的工具（jq、dcron）大概需要几分钟的时间，耐心等待一会。
+> - 默认启用自动更新，认证信息会在启动时自动获取
+> - 所有日志使用北京时间（CST，UTC+8）
+> - 浏览器访问 http://飞牛ip地址:15000/health  例如 http://192.168.1.100:15000/health 显示OK，说明服务启动成功了。此处的 192.168.1.100 替换为你飞牛的IP地址。
+
+### 3. 配置 Docker 客户端
+
+配置 Docker 客户端使用代理服务。编辑 Docker 配置文件：
+
+**Linux/macOS：**
+```bash
+sudo nano /etc/docker/daemon.json
+```
+
+**Windows：**
+编辑 `C:\ProgramData\docker\config\daemon.json`
+
+添加以下配置：
+将192.168.1.100替换为你飞牛的IP地址
+
+```json
+{
+  "registry-mirrors": [
+    "http://192.168.1.100:15000"
+  ],
+  "insecure-registries": [
+    "192.168.1.100:15000"
+  ]
+}
+```
+
+> **💡 提示**：
+> - `registry-mirrors`：配置镜像加速源
+> - `insecure-registries`：允许使用 HTTP 协议（因为代理使用 HTTP）
+> - 将 `192.168.1.100` 替换为飞牛服务器的 IP 地址
+
+**重启 Docker 服务：**
+
+```bash
+# Linux
+sudo systemctl restart docker
+
+# macOS (Docker Desktop)
+# 在 Docker Desktop 中重启服务
+
+# Windows
+# 在 Docker Desktop 中重启服务
+```
+
+**验证配置：**
+
+```bash
+docker info | grep -A 10 "Registry Mirrors"
+```
+
+应该看到：
+```
+Registry Mirrors:
+ http://192.168.1.100:15000/
+```
+
+
+## 自定义配置
+
+以下配置信息为可选项，建议直接使用默认配置。
+
+### 1. 配置 docker-compose
+
+编辑 `docker-compose.yml`，确认挂载配置（可选，默认已经使用了飞牛docker的默认路径。）：
 
 ```yaml
 volumes:
@@ -86,7 +166,7 @@ FNNAS_CONFIG_PATH=/你的实际路径/config.json
 - ${FNNAS_CONFIG_PATH}:/app/fnnas-config.json:ro
 ```
 
-### 3. 配置 .env 文件（可选）
+### 2. 配置 .env 文件（可选）
 
 项目已提供默认的 `.env` 文件，**默认启用自动更新**，可以直接使用，无需修改。
 
@@ -108,14 +188,6 @@ META_SIGN=
 > - 默认配置已启用自动更新（`ENABLE_AUTO_UPDATE=true`），`META_TOKEN` 和 `META_SIGN` 可以为空
 > - 系统会在启动时自动从挂载的配置文件获取认证信息
 > - 如果未启用自动更新，需要手动填写 `META_TOKEN` 和 `META_SIGN` 的值
-
-### 4. 启动服务
-
-```bash
-docker compose up -d
-```
-
-> **💡 提示**：直接使用 `nginx:alpine` 镜像，无需构建。启动时会自动安装必要的工具（jq、dcron）。
 
 ---
 
@@ -152,8 +224,11 @@ tail -f logs/update-auth.log
 ### 手动触发更新
 
 ```bash
-# 手动触发更新
-docker compose exec nginx-proxy /app/scripts/update-auth.sh
+# 手动触发更新（会显示在容器日志中）
+docker compose exec nginx-proxy sh /app/scripts/update-auth.sh
+
+# 查看更新结果
+docker compose logs | tail -20
 ```
 
 ---
@@ -164,11 +239,12 @@ docker compose exec nginx-proxy /app/scripts/update-auth.sh
 
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
-| `ENABLE_AUTO_UPDATE` | 是否启用自动更新 | `false` |
+| `ENABLE_AUTO_UPDATE` | 是否启用自动更新 | `true` |
 | `UPDATE_INTERVAL` | 更新间隔（秒） | `3600` |
 | `FNNAS_CONFIG_PATH` | 飞牛 NAS 配置文件路径（容器内） | `/app/fnnas-config.json` |
 | `ENABLE_ACCESS_LOG` | 是否开启访问日志 | `false` |
 | `ENABLE_ERROR_LOG` | 是否开启错误日志 | `false` |
+| `TZ` | 时区设置 | `Asia/Shanghai` |
 
 ### 挂载路径
 
@@ -224,8 +300,13 @@ docker compose exec nginx-proxy cat /app/fnnas-config.json
 
 ### 查看更新日志
 
+定时任务的日志会同时显示在容器日志和日志文件中：
+
 ```bash
-# 查看更新日志
+# 查看容器日志（推荐，可以看到实时更新）
+docker compose logs -f
+
+# 查看更新日志文件
 docker compose exec nginx-proxy tail -f /var/log/cron/update-auth.log
 
 # 或者查看宿主机日志文件
@@ -248,7 +329,19 @@ docker compose exec nginx-proxy crontab -l
 curl -v http://127.0.0.1:15000/v2/
 ```
 
-应该返回 401 错误，但 `WWW-Authenticate` header 应该指向 `http://127.0.0.1:15000/service/token`。
+应该返回 unauthorized: unauthorized ，但 `WWW-Authenticate` header 应该指向 `http://127.0.0.1:15000/service/token`。
+
+### 测试 Docker 拉取镜像
+
+```bash
+# 测试拉取镜像（使用代理）
+docker pull alpine:latest
+
+# 查看镜像信息
+docker images | grep alpine
+```
+
+如果配置正确，镜像会通过代理加速拉取。
 
 ---
 
@@ -265,12 +358,18 @@ curl -v http://127.0.0.1:15000/v2/
    - 定期清理更新日志，避免占用过多空间
 
 4. **认证信息**：
-   - 存储在 `.env` 文件中，**不要提交到版本控制系统**
-   - 如果启用了自动更新，初始值会被自动更新
+   - 存储在 `.env` 文件中，默认配置已提交到仓库（启用自动更新，认证信息为空）
+   - 如果启用了自动更新，系统会在启动时自动获取并更新认证信息
+   - 如果未启用自动更新，需要手动填写 `META_TOKEN` 和 `META_SIGN` 的值
 
 5. **配置文件路径**：
    - 默认路径是 `/root/.docker/config.json`
-   - 如果路径不同，通过 `FNNAS_CONFIG_PATH` 环境变量指定
+   - 如果路径不同，需要在 `docker-compose.yml` 中修改挂载路径
+
+6. **时区设置**：
+   - 默认使用北京时间（Asia/Shanghai，CST，UTC+8）
+   - 所有日志时间戳都使用北京时间
+   - 可以通过 `TZ` 环境变量修改时区
 
 ---
 
