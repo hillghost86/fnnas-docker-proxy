@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   nginx-proxy:
     image: nginx:alpine
@@ -10,13 +8,34 @@ services:
     volumes:
       # 挂载 Nginx 配置文件模板（使用环境变量占位符）
       - ./nginx-http-proxy.conf:/etc/nginx/templates/default.conf.template:ro
-      # 挂载启动脚本
+      # 挂载启动脚本（支持自动更新）
       - ./docker-entrypoint.sh:/docker-entrypoint.sh:ro
-      # 日志目录挂载（根据 ENABLE_LOG_VOLUME 环境变量决定）
-      # true: 使用 named volume（自动创建，无需手动创建目录）
-      # false: 不挂载日志目录
+      # 挂载更新脚本
+      - ./docker-update-auth.sh:/app/scripts/update-auth.sh:ro
+      # 挂载 cron 设置脚本
+      - ./docker-setup-cron.sh:/app/scripts/setup-cron.sh:ro
+      # 挂载 .env 文件为可写（用于自动更新）
+      - ./.env:/app/.env:rw
+      # 挂载时区文件（可选，如果宿主机有时区文件可以挂载）
+      # - /etc/localtime:/etc/localtime:ro
+      # 挂载飞牛 NAS 的配置文件（直接挂载模式）
+      # 注意：请确认宿主机路径存在，如果路径不同，请修改下面的路径
+      # 默认路径：/root/.docker/config.json
+      # 如果路径不同，请直接修改下面的路径，例如：/data/docker/config.json:/app/fnnas-config.json:ro
+      - /root/.docker/config.json:/app/fnnas-config.json:ro
+      # 日志目录挂载
       - nginx-logs:/var/log/nginx
+      # Cron 日志目录
+      - ./logs:/var/log/cron
     environment:
+      # 时区设置（北京时间）
+      - TZ=Asia/Shanghai
+      # 自动更新开关
+      - ENABLE_AUTO_UPDATE=${ENABLE_AUTO_UPDATE:-false}
+      # 更新间隔（秒），默认 3600（1小时）
+      - UPDATE_INTERVAL=${UPDATE_INTERVAL:-3600}
+      # 飞牛 NAS 配置文件路径（容器内路径）
+      - FNNAS_CONFIG_PATH=${FNNAS_CONFIG_PATH:-/app/fnnas-config.json}
       # 通过环境变量传递认证信息（从 .env 文件读取）
       - META_TOKEN=${META_TOKEN}
       - META_SIGN=${META_SIGN}
@@ -39,13 +58,10 @@ services:
       retries: 3
       start_period: 10s
 
-# volumes 部分：仅在需要日志功能时取消注释
-# 如果 ENABLE_LOG_VOLUME=false，请保持此部分注释状态
 volumes:
- nginx-logs:
-   driver: local
+  nginx-logs:
+    driver: local
 
 networks:
   proxy-network:
     driver: bridge
-
