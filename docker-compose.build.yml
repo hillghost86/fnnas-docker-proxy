@@ -3,8 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: fn-docker-proxy:latest
-    container_name: fn-docker-proxy
+    image: fnnas-docker-proxy:latest
+    container_name: fnnas-docker-proxy
     ports:
       - "0.0.0.0:15000:15000"
     volumes:

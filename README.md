@@ -1,11 +1,11 @@
-# fn-docker-proxy
+# fnnas-docker-proxy
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Docker](https://img.shields.io/badge/docker-ready-blue.svg)
 ![Nginx](https://img.shields.io/badge/nginx-proxy-green.svg)
 
-[![GitHub](https://img.shields.io/badge/GitHub-hillghost86%2Ffn--docker--proxy-blue?logo=github)](https://github.com/hillghost86/fn-docker-proxy)
-[![Gitee](https://img.shields.io/badge/Gitee-hillghost86%2Ffn--docker--proxy-red?logo=gitee)](https://gitee.com/hillghost86/fn-docker-proxy)
+[![GitHub](https://img.shields.io/badge/GitHub-hillghost86%2Ffnnas--docker--proxy-blue?logo=github)](https://github.com/hillghost86/fnnas-docker-proxy)
+[![Gitee](https://img.shields.io/badge/Gitee-hillghost86%2Ffnnas--docker--proxy-red?logo=gitee)](https://gitee.com/hillghost86/fnnas-docker-proxy)
 
 > 使用 Nginx 反向代理为飞牛 NAS (FNNAS) 的 Docker Registry 添加自定义认证 headers，实现 Docker 镜像加速。
 
@@ -48,28 +48,28 @@
 
 ```bash
 # HTTPS 方式
-git clone https://github.com/hillghost86/fn-docker-proxy.git
-cd fn-docker-proxy
+git clone https://github.com/hillghost86/fnnas-docker-proxy.git
+cd fnnas-docker-proxy
 ```
 
 ```bash
 # SSH 方式
-git clone git@github.com:hillghost86/fn-docker-proxy.git
-cd fn-docker-proxy
+git clone git@github.com:hillghost86/fnnas-docker-proxy.git
+cd fnnas-docker-proxy
 ```
 
 **Gitee（国内镜像，访问更快）：**
 
 ```bash
 # HTTPS 方式
-git clone https://gitee.com/hillghost86/fn-docker-proxy.git
-cd fn-docker-proxy
+git clone https://gitee.com/hillghost86/fnnas-docker-proxy.git
+cd fnnas-docker-proxy
 ```
 
 ```bash
 # SSH 方式
-git clone git@gitee.com:hillghost86/fn-docker-proxy.git
-cd fn-docker-proxy
+git clone git@gitee.com:hillghost86/fnnas-docker-proxy.git
+cd fnnas-docker-proxy
 ```
 
 ### 2. 启动服务
@@ -120,11 +120,11 @@ docker compose -f docker-compose.build.yml up -d
 docker pull nginx:alpine
 
 # 2. 构建镜像
-docker build -t fn-docker-proxy:latest .
+docker build -t fnnas-docker-proxy:latest .
 
 # 3. 启动容器
 docker run -d \
-  --name fn-docker-proxy \
+  --name fnnas-docker-proxy \
   -p 15000:15000 \
   -v $(pwd)/.env:/app/.env:rw \
   -v /root/.docker/config.json:/app/fnnas-config.json:ro \
@@ -134,7 +134,7 @@ docker run -d \
   -e ENABLE_AUTO_UPDATE=true \
   -e UPDATE_INTERVAL=3600 \
   --restart unless-stopped \
-  fn-docker-proxy:latest
+  fnnas-docker-proxy:latest
 ```
 
 > **💡 为什么需要先手动拉取镜像？**
